@@ -36,6 +36,7 @@ from .model_utils.unsloth import load_unsloth_pretrained_model
 from .model_utils.valuehead import load_valuehead_params
 from .patcher import patch_config, patch_model, patch_processor, patch_tokenizer, patch_valuehead_model
 
+import dolomite_engine.hf_models
 
 if TYPE_CHECKING:
     from transformers import PretrainedConfig, PreTrainedModel, PreTrainedTokenizer, ProcessorMixin
@@ -64,6 +65,10 @@ def _get_init_kwargs(model_args: "ModelArguments") -> Dict[str, Any]:
         "cache_dir": model_args.cache_dir,
         "revision": model_args.model_revision,
         "token": model_args.hf_hub_token,
+        "low_cpu_mem_usage" : True,
+        "torch_dtype" : torch.bfloat16,
+        "attn_implementation" : "flash_attention_2",
+        "moe_implementation" : "scattermoe"
     }
 
 
@@ -155,7 +160,14 @@ def load_model(
                 load_class = AutoModelForCausalLM
 
             if model_args.train_from_scratch:
-                model = load_class.from_config(config, trust_remote_code=model_args.trust_remote_code)
+                model = load_class.from_config(
+                    config, 
+                    trust_remote_code=model_args.trust_remote_code,
+                    low_cpu_mem_usage=True,
+                    attn_implementation="flash_attention_2",
+                    moe_implementation='scattermoe',
+                    torch_dtype=torch.bfloat16,
+                    )
             else:
                 model = load_class.from_pretrained(**init_kwargs)
 
